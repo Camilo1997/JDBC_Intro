@@ -34,10 +34,10 @@ public class JDBCExample {
     
     public static void main(String args[]){
         try {
-            String url="jdbc:mysql://HOST:3306/BD";
+            String url="jdbc:mysql://desarrollo.is.escuelaing.edu.co:3306/bdprueba";
             String driver="com.mysql.jdbc.Driver";
-            String user="USER";
-            String pwd="PWD";
+            String user="bdprueba";
+            String pwd="bdprueba";
                         
             Class.forName(driver);
             Connection con=DriverManager.getConnection(url,user,pwd);
@@ -48,6 +48,7 @@ public class JDBCExample {
             
             List<String> prodsPedido=nombresProductosPedido(con, 1);
             
+            mostrarTablas(con);
             
             System.out.println("Productos del pedido 1:");
             System.out.println("-----------------------");
@@ -57,7 +58,7 @@ public class JDBCExample {
             System.out.println("-----------------------");
             
             
-            int suCodigoECI=20134423;
+            int suCodigoECI=2105700;
             registrarNuevoProducto(con, suCodigoECI, "SU NOMBRE", 99999999);            
             con.commit();
                         
@@ -83,8 +84,12 @@ public class JDBCExample {
         //Crear preparedStatement
         //Asignar parámetros
         //usar 'execute'
-
-        
+        String statement = "INSERT INTO ORD_PRODUCTOS (codigo, nombre, precio)"
+                + "VALUES(?, ?, ?)";
+        PreparedStatement regProducto = con.prepareStatement(statement);
+        regProducto.setInt(1, codigo);
+        regProducto.setString(2, nombre);
+        regProducto.setInt(3, precio);
         con.commit();
         
     }
@@ -95,7 +100,7 @@ public class JDBCExample {
      * @param codigoPedido el código del pedido
      * @return 
      */
-    public static List<String> nombresProductosPedido(Connection con, int codigoPedido){
+    public static List<String> nombresProductosPedido(Connection con, int codigoPedido) throws SQLException{
         List<String> np=new LinkedList<>();
         
         //Crear prepared statement
@@ -103,7 +108,13 @@ public class JDBCExample {
         //usar executeQuery
         //Sacar resultados del ResultSet
         //Llenar la lista y retornarla
-        
+        String statement = "SELECT ord.nombre, ord.codigo FROM ORD_PRODUCTOS ord WHERE ord.codigo = ?";
+        PreparedStatement x = con.prepareStatement(statement);
+        x.setInt(1, codigoPedido);
+        ResultSet y = x.executeQuery();
+        while(y.next()){
+            np.add(y.getString("nombre"));
+        }
         return np;
     }
 
@@ -114,18 +125,29 @@ public class JDBCExample {
      * @param codigoPedido código del pedido cuyo total se calculará
      * @return el costo total del pedido (suma de: cantidades*precios)
      */
-    public static int valorTotalPedido(Connection con, int codigoPedido){
+    public static int valorTotalPedido(Connection con, int codigoPedido) throws SQLException{
         
         //Crear prepared statement
         //asignar parámetros
         //usar executeQuery
         //Sacar resultado del ResultSet
+        String statement = "SELECT SUM(ord.cantidad * orp.precio) AS sumaProductos "
+                + "FROM ORD_PRODUCTOS AS orp JOIN ORD_DETALLES_PEDIDO AS ord ON (ord.pedido_fk = orp.codigo) WHERE ord.pedido_fk = ?";
+        PreparedStatement x = con.prepareStatement(statement);
+        x.setInt(1, codigoPedido);
+        ResultSet y = x.executeQuery();
         
-        return 0;
+        if(!y.first())return 123;
+        return y.getInt("sumaProductos");
     }
     
-
-    
-    
-    
+    public static void mostrarTablas(Connection con) throws SQLException{
+        String statement = "SELECT orp.*, ord.* FROM ORD_PRODUCTOS AS orp JOIN ORD_DETALLES_PEDIDO AS ord "
+                + "ON (ord.pedido_fk = orp.codigo)";
+        PreparedStatement x = con.prepareStatement(statement);
+        ResultSet y = x.executeQuery();
+        while(y.next()){
+            System.out.println(y.getString("nombre") + " " + y.getInt("precio") + " " + y.getInt("cantidad") + " " + y.getInt("pedido_fk"));
+        }
+    }
 }
